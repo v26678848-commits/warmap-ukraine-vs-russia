@@ -1,0 +1,122 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no" />
+  <meta name="theme-color" content="#09111d" />
+  <meta name="description" content="Мобильная стратегия на интерактивной карте Украины с реальными GeoJSON-операциями." />
+  <link rel="manifest" href="./manifest.json" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIINf/Q4uK1Z8b3B1wqVxV4S9F0yJr1J+oM=" crossorigin="" />
+  <link rel="stylesheet" href="./style.css" />
+  <title>Frontline Map — Украина</title>
+</head>
+<body>
+  <main id="app" class="app-shell">
+    <div id="map" class="map" aria-label="Интерактивная карта Украины"></div>
+
+    <header class="top-ui">
+      <div class="brand-card panel-glass">
+        <div class="brand-mark">FM</div>
+        <div>
+          <div class="brand-title">FRONTLINE MAP</div>
+          <div id="scenarioLabel" class="brand-subtitle">Учебный sandbox-сценарий</div>
+        </div>
+      </div>
+
+      <section id="statsPanel" class="stats-card panel-glass" aria-label="Статистика">
+        <div class="stat-row" data-owner="ukraine">
+          <span class="stat-dot owner-ukraine"></span><span>Украина</span><b id="statUkraine">—</b>
+        </div>
+        <div class="stat-row" data-owner="russia">
+          <span class="stat-dot owner-russia"></span><span>Россия</span><b id="statRussia">—</b>
+        </div>
+        <div class="stat-row" data-owner="gray">
+          <span class="stat-dot owner-gray"></span><span>Серая</span><b id="statGray">—</b>
+        </div>
+        <div class="stats-total"><span>Контроль</span><span id="statMeta">загрузка…</span></div>
+      </section>
+
+      <div id="modeBadge" class="mode-badge panel-glass">Режим: <strong>Украина</strong></div>
+    </header>
+
+    <aside class="map-controls panel-glass" aria-label="Управление картой">
+      <button class="icon-btn" id="zoomInBtn" title="Приблизить">+</button>
+      <button class="icon-btn" id="zoomOutBtn" title="Отдалить">−</button>
+      <button class="icon-btn" id="recenterBtn" title="Центр Украины">⌖</button>
+    </aside>
+
+    <div id="loadingOverlay" class="loading-overlay">
+      <div class="loading-card panel-glass">
+        <div class="spinner"></div>
+        <div class="loading-title">Загрузка карты</div>
+        <div id="loadingText" class="loading-text">Подготавливаем геоданные…</div>
+      </div>
+    </div>
+
+    <div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+    <section id="bottomPanel" class="bottom-panel panel-glass">
+      <div class="owner-selector">
+        <button class="owner-btn owner-ukraine active" data-owner="ukraine">УКРАИНА</button>
+        <button class="owner-btn owner-russia" data-owner="russia">РОССИЯ</button>
+        <button class="owner-btn owner-gray" data-owner="gray">СЕРАЯ ЗОНА</button>
+      </div>
+      <div class="action-row">
+        <button id="captureBtn" class="primary-btn">ЗАХВАТИТЬ</button>
+        <button id="cancelDrawBtn" class="secondary-btn" disabled>ОТМЕНИТЬ</button>
+        <button id="undoBtn" class="secondary-btn">↶</button>
+        <button id="menuBtn" class="secondary-btn">☰</button>
+      </div>
+    </section>
+
+    <section id="drawHint" class="draw-hint panel-glass hidden">Обведите участок пальцем и отпустите</section>
+
+    <div id="cityPopup" class="city-popup panel-glass hidden"></div>
+  </main>
+
+  <div id="confirmModal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="confirmTitle">
+    <div class="modal-card panel-glass">
+      <div class="modal-kicker">ПОДТВЕРЖДЕНИЕ</div>
+      <h2 id="confirmTitle">Захват территории</h2>
+      <div class="confirm-grid">
+        <div><span>Сторона</span><b id="confirmOwner">Украина</b></div>
+        <div><span>Площадь</span><b id="confirmArea">—</b></div>
+      </div>
+      <p id="confirmMessage" class="modal-note">Операция изменит реальную геометрию территорий.</p>
+      <div class="modal-actions">
+        <button id="confirmCancel" class="secondary-btn wide">Отменить</button>
+        <button id="confirmApply" class="primary-btn wide">Захватить</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="menuModal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="menuTitle">
+    <div class="modal-card panel-glass">
+      <div class="modal-kicker">МЕНЮ</div>
+      <h2 id="menuTitle">Игра</h2>
+      <div class="menu-buttons">
+        <button id="continueBtn" class="menu-btn">Продолжить игру</button>
+        <button id="newGameBtn" class="menu-btn">Новая игра</button>
+        <button id="resetBtn" class="menu-btn danger">Сбросить прогресс</button>
+      </div>
+      <div class="settings-block">
+        <label for="grayZoneWidth">Автосерая зона: <b id="grayZoneWidthLabel">12 км</b></label>
+        <input id="grayZoneWidth" type="range" min="2" max="30" step="1" value="12" />
+        <label for="connectionTolerance">Допуск связи: <b id="connectionToleranceLabel">1.5 км</b></label>
+        <input id="connectionTolerance" type="range" min="0.25" max="5" step="0.25" value="1.5" />
+      </div>
+      <button id="closeMenuBtn" class="secondary-btn wide">Закрыть</button>
+    </div>
+  </div>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+  <script src="https://cdn.jsdelivr.net/npm/@turf/turf@7.4.0/turf.min.js"></script>
+  <script src="./gameState.js"></script>
+  <script src="./territory.js"></script>
+  <script src="./grayzone.js"></script>
+  <script src="./cities.js"></script>
+  <script src="./map.js"></script>
+  <script src="./ui.js"></script>
+  <script src="./app.js"></script>
+</body>
+</html>
